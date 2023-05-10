@@ -16,9 +16,10 @@
 # define M_PI 3.14159265358979323846 // number pi, an example in case you need it
 
 // ------------- Vehicle Variables -------------
-# define WHEEL_DIAMETER     30.0    // in mm
+# define WHEEL_DIAMETER      30.0   // in mm
 # define ARM_LENGTH         140.0   // in mm
-# define GRYPER_HIGHT        30.0    // in mm
+# define GRYPER_HIGHT        30.0   // in mm
+# define AXE_HEIGHT          45.0   // in mm
 
 
 // ------------- Operation Variables -------------
@@ -68,15 +69,15 @@ int main()
     DigitalIn mechanical_button(PC_5); 
     mechanical_button.mode(PullUp);
 
-    DigitalIn btn_start(PC_9);   // create DigitalIn object to evaluate extra mechanical button, you need to specify the mode for proper usage, see below
-    btn_start.mode(PullUp); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
-    btn_start.fall(&start_button_pressed_fcn);
+    DigitalIn btn_start(PB_2);   // create DigitalIn object to evaluate extra mechanical button, you need to specify the mode for proper usage, see below
+    btn_start.mode(PullDown); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
+    //btn_start.fall(&start_button_pressed_fcn);
 
     DigitalIn btn_reset_vehicle(PC_8);
-    btn_reset_vehicle.mode(PullUp); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
+    btn_reset_vehicle.mode(PullDown); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
     
     DigitalIn btn_reset_all(PC_6);
-    btn_reset_all.mode(PullUp); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
+    btn_reset_all.mode(PullDown); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
     
     DigitalIn btn_reserve(PB_12);
     btn_reserve.mode(PullUp); // set pullup mode: sets pullup between pin and 3.3 V, so that there is a defined potential
@@ -114,7 +115,7 @@ int main()
 
 
     // ------------- M2 (closed-loop position controlled) -------------
-    float max_speed_rps_M2 = 0.03f;
+    float max_speed_rps_M2 = 0.01f;
     const int M2_gear = 488;
     const float maxAccelerationRPS_M2 = 1.0f;
 
@@ -160,9 +161,9 @@ int main()
 
         main_task_timer.reset();
 
-        printf("BST:  %d :", btn_reserve.read() );
-        printf("BRS:  %d :", btn_start.read());
-        printf("USR:  %d \n", user_button.read());
+        //printf("BTN START:  %d :", btn_start.read());
+        //printf("BTN RESET Vehicle:  %d :", btn_reset_vehicle.read());
+        //printf("BTN RESET ALL:  %d \n", btn_reset_all.read());
         
         if (do_execute_main_task) {
 
@@ -189,22 +190,25 @@ int main()
 
                 case GRYPER_STATE_INIT:
 
-                    if(btn_start){ //btn_start
+                    if(!btn_start.read()){ //btn_start
                         // Start the loop
+                        printf("SET START MODE\n");
                         enable_motors = 1;
+                        gryper_state_actual = GRYPER_STATE_ROTATE;                    
 
-                        gryper_state_actual = GRYPER_STATE_ARM_DOWN_1;                    
-                        // For testing set the state that you want to test
-                        //gryper_state_actual = GRYPER_STATE_ARM_DOWN_1;
-
-                    } else if(btn_reset_vehicle) {
+                    } else if(!btn_reset_vehicle.read()) {
                         // for the resetloop
+                        printf("SET RESET MODE\n");
                         gryper_state_actual = GRYPER_STATE_RESET;
-                    } else if(btn_reset_all){
+                        
+                    } else if(btn_reset_all.read()) {
+                        printf("SET RESET ALL MODE\n");
                         // Reset All
+                        // muss negiert werden wenn der Button angeschlossen wird
 
-                    } else if(btn_reserve){
+                    } else if(!btn_reserve.read()){
                         //Reserve Button
+                        printf("SET RESERVE MODE\n");
                     } else {
                         // set state to init state
                         gryper_state_actual = GRYPER_STATE_INIT;
@@ -263,9 +267,10 @@ int main()
                     }               
 
                     // 2. calculate angle
-                    angle_B = calcAngleSetArm();                                    // Fkt. get angle in [rad] -> 0.948
-                    bogenlaenge = get_way_from_rad(angle_B);                        // in mm
-                    rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);  // = 0.301 rot
+                    angle_B = calcAngleSetArm();                                      // Fkt. get angle in [rad] -> 0.948
+                    bogenlaenge = get_way_from_rad(angle_B);                          // in mm
+                    //rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);  // = 0.301 rot
+                    rotation = convertRadToRotation(angle_B);
                     printf("ANGLE: %f [m]\tWEG: %f\tROT: %f\n",angle_B, bogenlaenge, rotation);
 
                     // 3. Drive angle 
@@ -283,7 +288,7 @@ int main()
                     // Set further STEP  
                     if(positionController_M2.getRotation() >= rotation-0.01f){
                         printf("SET_ARM: set next step\n");
-                        gryper_state_actual = GRYPER_STATE_INIT;
+                        gryper_state_actual = GRYPER_STATE_ROTATE;
                     }                               
                     break;
                 
@@ -296,8 +301,8 @@ int main()
                     */
 
                     // 1. calculate angle
-                    angle_rot = 2 * M_PI - 2 * calcAngleSetArm(); // Fkt. get angle in [rad] -> 0.948
-                    bogenlaenge = get_way_from_rad(angle_rot); // in mm
+                    angle_rot =  0.5 * M_PI + 2 * calcAngleSetArm(); // Fkt. get angle in [rad] -> 0.65
+                    // bogenlaenge = get_way_from_rad(angle_rot); // in mm
                     //rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);
                     rotation = convertRadToRotation(angle_rot);
 
@@ -454,7 +459,7 @@ void user_button_pressed_fcn() {
 }
 
 void start_button_pressed_fcn() {
-    // do_execute_main_task if the button was pressed
+    printf("START Button pressed\n");
     start_pressed = !start_pressed;
 }
 
@@ -476,7 +481,7 @@ float convertDistanceToRotation(float distanceInMillimeters, float diameter) {
 
 // Functions for STEP 3
 double calcAngleSetArm(void) {
-    return asin((HURDLE_HIGHT + GRYPER_HIGHT)/ARM_LENGTH);;
+    return asin((HURDLE_HIGHT + GRYPER_HIGHT - AXE_HEIGHT)/ARM_LENGTH);;
 }
 
 

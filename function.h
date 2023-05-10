@@ -2,6 +2,7 @@
 
 
 void user_button_pressed_fcn(); // custom functions which get executed when user button gets pressed, definition below
+void start_button_pressed_fcn();
 float convertDistanceToRotation(float distanceInMillimeters, float diameter); //custom function which calculate Radians from Distance
 double convertRadToRotation(double angle);
 float convertDistanceRadians(float distanceInMillimeters, float diameter);
