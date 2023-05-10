@@ -20,4 +20,5 @@ bool do_reset_all_once = false;    // this variable is used to reset certain var
 bool start_pressed = false;
 
 // objects for user button (blue button) handling on nucleo board
-DebounceIn user_button(PC_13);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
+//DebounceIn user_button(PC_13);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
+DebounceIn user_button(PB_12);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
