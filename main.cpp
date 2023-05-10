@@ -444,7 +444,7 @@ void start_button_pressed_fcn() {
 // General Functions
 float convertDistanceToRadians(float distanceInMillimeters, float diameter) {
     float u = diameter * M_PI;
-    return (u / 2) * M_PI / distanceInMillimeters;
+    return ((u / 2) * M_PI / distanceInMillimeters)*1.375; // 1.375 Getriebe (22/16)
 
 }
 
