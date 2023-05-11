@@ -27,7 +27,7 @@
 
 // ------------- Operation Variables -------------
 # define DISTANCE_1         500      // in mm (gemessen auf der Bahn 440mm)
-# define DISTANCE_2         50      // in mm    
+# define DISTANCE_2         400      // in mm    
 # define ANGEL_SET_ARM      45      // in Grad (wird nicht verwendet)
 # define HURDLE_HIGHT       100     // in mm
 
@@ -40,6 +40,7 @@ bool forward_2 = 0;
 bool rotate_full = 0;
 bool adjust_ok = 0;
 bool detach_ok = 0;
+bool detach_ok_2 = 0;
 bool detach_forward_ok;
 
 float angle_arm_down_1 = 0.0;
@@ -51,6 +52,7 @@ float bogenlaenge = 0.0, rotation = 0.0, act_pos = 0.0, act_pos_m1;
 // for GRYPER_STATE_DETACH
 double angle_detach = 0;
 double angle_adjust = 0;
+double angle_detach_2 = 0;
 
 #include <main.h>
 // main runs as an own thread
@@ -116,9 +118,9 @@ int main()
 
 
     // ------------- M2 (closed-loop position controlled) -------------
-    float max_speed_rps_M2 = 0.020f;
+    float max_speed_rps_M2 = 0.040f;
     const int M2_gear = 488;
-    const float maxAccelerationRPS_M2 = 2.0f;
+    const float maxAccelerationRPS_M2 = 1.0f;
 
     const float counts_per_turn_M2 = 20.0f * 78.125f;      // define counts per turn at gearbox end: counts/turn * gearratio
     const float kn_M2 = 50.0f / 12.0f;                    // define motor constant in RPM/V
@@ -178,7 +180,7 @@ int main()
                         // Start the loop
                         printf("SET START MODE\n");
                         enable_motors = 1;
-                        gryper_state_actual = GRYPER_STATE_DETACH;                    
+                        gryper_state_actual = GRYPER_STATE_ROTATE;                    
 
                     } else if(!btn_reset_vehicle.read()) {
                         // for the resetloop
@@ -204,7 +206,7 @@ int main()
                     printf("Run STATE_ARM_DOWN_1\n");
                     /* Test1: Winkel ein bisschen kleiner machen
                     //  geschwindikeit i.o, übergang zu STATE 2 i.o */
-                    angle_arm_down_1 = -0.185;
+                    angle_arm_down_1 = -0.25;
 
                     if (!arm_down){
                         positionController_M2.setDesiredRotation(angle_arm_down_1); // 1.0f = 360°, 0.222f= 80°   
@@ -254,7 +256,7 @@ int main()
                     angle_B = calcAngleSetArm();                                      // Fkt. get angle in [rad] -> 0.948
                     bogenlaenge = get_way_from_rad(angle_B);                          // in mm
                     //rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);  // = 0.301 rot
-                    rotation = convertRadToRotation(angle_B) + 0.1;
+                    rotation = convertRadToRotation(angle_B) + 0.05;
                     printf("ANGLE: %f [m]\tROT: %f\tact_pos: %f\n",angle_B, rotation, positionController_M2.getRotation());
 
                     // 3. Drive angle 
@@ -290,7 +292,7 @@ int main()
                     angle_rot =  M_PI + 2 * calcAngleSetArm(); // Fkt. get angle in [rad] -> 0.65
                     // bogenlaenge = get_way_from_rad(angle_rot); // in mm
                     //rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);
-                    rotation = convertRadToRotation(angle_rot);
+                    rotation = convertRadToRotation(angle_rot) - 0.205;
 
                     //rotation = 0.5; // RR: Nur zu test zwecken
                     printf("ANGLE ROT: %f \tROT: %f act_pos: %f\n",angle_rot, rotation, positionController_M2.getRotation());
@@ -320,7 +322,7 @@ int main()
                     // Set further STEP 
                     if (positionController_M2.getRotation() >= act_pos + angle_adjust && adjust_ok && rotate_full) {
                         //gryper_state_actual = GRYPER_STATE_DETACH;
-                        gryper_state_actual = GRYPER_STATE_INIT;
+                        gryper_state_actual = GRYPER_STATE_DETACH;
                     }
                     break;
 
@@ -330,31 +332,39 @@ int main()
                         1. lift arm and drive backword
                         2. drive 5cm forward
                     */
-                    angle_detach = 0.125;
+                    angle_detach = 0.05;
 
-                    // 1. lift arm and drive backword
+                    // 1. Setze greifer waagrecht
                     if (!detach_ok) {
                         printf("DETACH: is detaching\n");
                         act_pos = positionController_M2.getRotation();
-                        positionController_M1.setDesiredRotation(convertDistanceToRotation(-100, WHEEL_DIAMETER) + positionController_M1.getRotation());
+                        positionController_M2.setDesiredRotation(act_pos - angle_detach);
+
                         //osDelay(1000);
                         //printf("Delay is finish");
-                        positionController_M2.setDesiredRotation(act_pos + angle_detach);
+                        
                         detach_ok = 1;
+                    }
+                    angle_detach_2 = 0.70;
+                    // detach
+                    if (positionController_M2.getRotation() <= act_pos - angle_detach +0.001 && detach_ok && !detach_ok_2){
+                        positionController_M1.setDesiredRotation(convertDistanceToRotation(-100, WHEEL_DIAMETER) + positionController_M1.getRotation());
+                        positionController_M2.setDesiredRotation(act_pos + angle_detach_2);
+                        detach_ok_2 = 1;
                     }
                     
                     // 2. drive 5cm forward
-                    printf("DETACH: act_pos_m1 %f\n", positionController_M1.getRotation());
-                    if (positionController_M2.getRotation() >= act_pos + angle_detach - 0.01 && detach_ok && !detach_forward_ok) {
-                        printf("DETACH: drive forward\n");
-                        positionController_M1.setDesiredRotation(convertDistanceToRotation(50, WHEEL_DIAMETER) + positionController_M1.getRotation()); 
+                    printf("DETACH: act_pos_m1 %f\t", positionController_M1.getRotation() );
+                    printf("DETACH: act_pos_m2 %f\n", positionController_M2.getRotation() );
+                    if (positionController_M2.getRotation() >= act_pos - angle_detach + angle_detach_2 - 0.01 && detach_ok && !detach_forward_ok && detach_ok_2) {
+                        printf("DETACH: drive forward---------------\n");
+                        positionController_M1.setDesiredRotation(convertDistanceToRotation(100, WHEEL_DIAMETER) + positionController_M1.getRotation()); 
                         act_pos_m1 = positionController_M1.getRotation();
                         detach_forward_ok = 1;
                         // RR: evt. ganz nach hinten fahren bis an das hinderniss und nur von dort aus eine bestimmte distanz fahren
                     }
                     
                     // Set further STEP 
-                    
                     if (detach_forward_ok && detach_ok && positionController_M1.getRotation() >= act_pos_m1 + convertDistanceToRotation(50, WHEEL_DIAMETER) -0.01f) {
                         printf("DETACH: Finish\n");
                         //gryper_state_actual = GRYPER_STATE_ARM_DOWN_2;
@@ -367,15 +377,16 @@ int main()
                     printf("Run STATE_ARM_DOWN_2\n");
 
                     if (!arm_down_2){
-                        positionController_M2.setDesiredRotation(0.888f); // 1.0f = 360°, 0.222f = 80°
+                        positionController_M2.setDesiredRotation(angle_arm_down_1); // 1.0f = 360°, 0.222f = 80°
                         
                     }
-                    if(positionController_M2.getRotation() <= 0.888f + 0.1f){
+                    if(positionController_M2.getRotation() <= angle_arm_down_1){
                         arm_down_2 = 1;
                         gryper_state_actual = GRYPER_STATE_FORWARD_2;
                         //gryper_state_actual = GRYPER_STATE_INIT;
                     }
                     break;
+                    
 
                 case GRYPER_STATE_FORWARD_2:
                     printf("Run STATE_FORWARD_2\n");
@@ -470,11 +481,11 @@ float convertDistanceToRotation(float distanceInMillimeters, float diameter) {
 
 // Functions for STEP 3
 double calcAngleSetArm(void) {
-    return asin((HURDLE_HIGHT + GRYPER_HIGHT - AXE_HEIGHT)/ARM_LENGTH);;
+    return asin((HURDLE_HIGHT + GRYPER_HIGHT - AXE_HEIGHT)/ARM_LENGTH);
 }
 
 
 double convertRadToRotation(double angle) {
     // Angle in [rad]
-    return 1 / (2 * M_PI) * angle;
+    return (1 / (2 * M_PI) * angle) *2 ;
 }
