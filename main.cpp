@@ -33,7 +33,7 @@
 
 bool arm_0_position = 0;
 bool arm_down = 0;
-bool arm_set_m1;
+bool arm_set_m1 = 0;
 bool arm_down_2 = 0;
 bool forward_1 = 0;
 bool forward_2 = 0;
@@ -41,7 +41,15 @@ bool rotate_full = 0;
 bool adjust_ok = 0;
 bool detach_ok = 0;
 bool detach_ok_2 = 0;
-bool detach_forward_ok;
+bool detach_forward_ok = 0;
+bool arm_down_3 = 0;
+// ruetler
+bool ruetler_ok = 0;
+int i = 0;
+int range = 0;
+float one_step = 0.0;
+bool r_backwards = 0;
+bool r_forwards = 0;
 
 float angle_arm_down_1 = 0.0;
 
@@ -99,9 +107,9 @@ int main()
 
 
     // ------------- M1 (closed-loop position controlled) -------------
-    float max_speed_rps_M1 = 0.20f;
+    float max_speed_rps_M1 = 0.2f;
     const int M1_gear = 100;
-    const float maxAccelerationRPS_M1 = 1.0f;
+    const float maxAccelerationRPS_M1 = 4.0f;
 
     const float counts_per_turn_M1 = 20.0f * 78.125f;      // define counts per turn at gearbox end: counts/turn * gearratio
     const float kn_M1 = 180.0f / 12.0f;                    // define motor constant in RPM/V
@@ -249,7 +257,7 @@ int main()
                     if(positionController_M2.getRotation()>= -0.005f && positionController_M2.getRotation() <= 0.005f) {
                         printf("Reset 0 Position------------------------------------------------------------\n");
                         arm_0_position = 1;
-                        arm_down_2 = 0; // RR: wuer ich erst am schluss mache
+                        
                     }               
 
                     // 2. calculate angle
@@ -292,7 +300,7 @@ int main()
                     angle_rot =  M_PI + 2 * calcAngleSetArm(); // Fkt. get angle in [rad] -> 0.65
                     // bogenlaenge = get_way_from_rad(angle_rot); // in mm
                     //rotation = convertDistanceToRotation(bogenlaenge, ARM_LENGTH);
-                    rotation = convertRadToRotation(angle_rot) - 0.205;
+                    rotation = convertRadToRotation(angle_rot) - 0.260;
 
                     //rotation = 0.5; // RR: Nur zu test zwecken
                     printf("ANGLE ROT: %f \tROT: %f act_pos: %f\n",angle_rot, rotation, positionController_M2.getRotation());
@@ -330,35 +338,85 @@ int main()
                     printf("Run STATE_DETACH\n");
                     /*  lift the arm and detach it from the hurdle 
                         1. lift arm and drive backword
-                        2. drive 5cm forward
-                    */
-                    angle_detach = 0.05;
+                        2. drive 5cm forward*/
+                    angle_detach = 0.1;
 
                     // 1. Setze greifer waagrecht
                     if (!detach_ok) {
                         printf("DETACH: is detaching\n");
                         act_pos = positionController_M2.getRotation();
                         positionController_M2.setDesiredRotation(act_pos - angle_detach);
-
                         //osDelay(1000);
                         //printf("Delay is finish");
-                        
                         detach_ok = 1;
                     }
                     angle_detach_2 = 0.70;
+
+
+                    // Ruetler
+                     if (positionController_M2.getRotation() <= act_pos - angle_detach + 0.001 && detach_ok && !ruetler_ok ){
+                         printf("START: RUETLER------\n");
+                         i = 0;
+                         range = 10;
+                         one_step = 0.0;
+                         r_backwards = 0, r_forwards = 0;
+                         angle_detach_2 = 0.5;
+                         
+
+                         while (i < range) {
+                            one_step = angle_detach_2/range;
+                            printf("STEP: %d : onestep: %f : act_pos_save %f : act_pos : %f\n", i, one_step, act_pos, positionController_M2.getRotation());
+
+                            if(!r_backwards && !r_forwards) {
+                                printf("R: Forward: -------");
+                                act_pos = positionController_M2.getRotation();
+                                positionController_M2.setDesiredRotation(act_pos + one_step); 
+                                r_forwards = 1;
+                            }
+                            
+                            if(positionController_M2.getRotation() >= act_pos + one_step - 0.001f && !r_backwards && r_forwards) {
+                                printf("R: Backward ---------\n");
+                                act_pos = positionController_M2.getRotation();
+                                positionController_M2.setDesiredRotation(act_pos - one_step + 0.03);
+                                r_backwards = 1;
+                                
+                            }
+
+                            if(i >= 2){
+                                act_pos_m1 = positionController_M1.getRotation();
+                                positionController_M1.setDesiredRotation(act_pos_m1 - 0.2);
+                            }
+
+                            if(positionController_M2.getRotation() <= act_pos - one_step + 0.03 + 0.001f && r_backwards){
+                                printf("R: Nextstep ---------\n");
+                                i += 1;
+                                r_backwards = 0;
+                                r_forwards = 0;
+                            
+                            
+                            }
+                         }
+                         printf("Juhuuu de scheiss het klappet:)\n");
+                         ruetler_ok = 1;
+                         positionController_M2.setDesiredRotation(positionController_M2.getRotation());
+                         positionController_M1.setDesiredRotation(positionController_M1.getRotation());
+                         
+                     }
+                    /*
                     // detach
-                    if (positionController_M2.getRotation() <= act_pos - angle_detach +0.001 && detach_ok && !detach_ok_2){
+                    if (positionController_M2.getRotation() <= act_pos - angle_detach +0.001 && detach_ok && !detach_ok_2 && ruetler_ok){
                         positionController_M1.setDesiredRotation(convertDistanceToRotation(-100, WHEEL_DIAMETER) + positionController_M1.getRotation());
                         positionController_M2.setDesiredRotation(act_pos + angle_detach_2);
                         detach_ok_2 = 1;
-                    }
+                    }*/
                     
                     // 2. drive 5cm forward
                     printf("DETACH: act_pos_m1 %f\t", positionController_M1.getRotation() );
                     printf("DETACH: act_pos_m2 %f\n", positionController_M2.getRotation() );
-                    if (positionController_M2.getRotation() >= act_pos - angle_detach + angle_detach_2 - 0.01 && detach_ok && !detach_forward_ok && detach_ok_2) {
+
+                    if (ruetler_ok && detach_ok && !detach_forward_ok) {
                         printf("DETACH: drive forward---------------\n");
-                        positionController_M1.setDesiredRotation(convertDistanceToRotation(100, WHEEL_DIAMETER) + positionController_M1.getRotation()); 
+                        positionController_M1.setDesiredRotation(convertDistanceToRotation(120, WHEEL_DIAMETER) + positionController_M1.getRotation()); 
                         act_pos_m1 = positionController_M1.getRotation();
                         detach_forward_ok = 1;
                         // RR: evt. ganz nach hinten fahren bis an das hinderniss und nur von dort aus eine bestimmte distanz fahren
@@ -375,14 +433,18 @@ int main()
 
                 case GRYPER_STATE_ARM_DOWN_2:
                     printf("Run STATE_ARM_DOWN_2\n");
+                    angle_arm_down_1 = -0.25;
 
-                    if (!arm_down_2){
-                        positionController_M2.setDesiredRotation(angle_arm_down_1); // 1.0f = 360°, 0.222f = 80°
-                        
+                    if(!arm_down_3) {
+                        printf("Huere scheiss");
+                        act_pos = positionController_M2.getRotation();
+                        positionController_M2.setDesiredRotation(act_pos + angle_arm_down_1); // 1.0f = 360°, 0.222f = 80°
+                        arm_down_3 = 1; 
                     }
-                    if(positionController_M2.getRotation() <= angle_arm_down_1){
-                        arm_down_2 = 1;
-                        gryper_state_actual = GRYPER_STATE_FORWARD_2;
+                
+                    if(positionController_M2.getRotation() <= act_pos + angle_arm_down_1 + 0.001f && arm_down_3){
+                        printf("Arm down 2");
+                        gryper_state_actual = GRYPER_STATE_INIT;
                         //gryper_state_actual = GRYPER_STATE_INIT;
                     }
                     break;
@@ -420,6 +482,9 @@ int main()
 
                     positionController_M1.setDesiredRotation(0.0f); //M1 auf Position 0.0 fahren
                     positionController_M2.setDesiredRotation(0.0f); //M2 auf position 0.0 fahren
+
+                    arm_0_position = 0; arm_down = 0; arm_set_m1 = 0; arm_down_2 = 0; forward_1 = 0; forward_2 = 0; rotate_full = 0; 
+                    adjust_ok = 0; detach_ok = 0; detach_ok_2 = 0; detach_forward_ok = 0; ruetler_ok = 0; r_backwards = 0; r_forwards = 0;arm_down_3 = 0;
 
                     if(positionController_M1.getRotation() <= 0.01f && positionController_M2.getRotation() <= 0.01f){
                         gryper_state_actual = GRYPER_STATE_INIT;
