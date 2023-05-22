@@ -1,9 +1,9 @@
 /*
 * Project: pm2_pes_board_example
-* Date: 22.03.2023
+* Date: 22.05.2023
 * Authors: Raphael Romann, Yves Guldimann
 * Modul: PM2
-* Version: 0.0.0.0
+* Version: 1.0.0.0
 */
 #include <chrono>
 #include <cstdint>
@@ -43,7 +43,6 @@ bool detach_ok = 0;
 bool detach_ok_2 = 0;
 bool detach_forward_ok = 0;
 bool arm_down_3 = 0;
-// ruetler
 bool ruetler_ok = 0;
 int i = 0;
 int range = 0;
@@ -72,10 +71,8 @@ int main()
     // while loop gets executed every main_task_period_ms milliseconds (simple aproach to repeatedly execute main)
     const int main_task_period_ms = 50; // define main task period time in ms e.g. 50 ms -> main task runs 20 times per second
     Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
-    // led on nucleo board
     
-    // ------------- Variablen -------------
-
+    
     // ---------- Buttons ----------
     DigitalIn mechanical_button(PC_5); 
     mechanical_button.mode(PullUp);
@@ -99,7 +96,6 @@ int main()
     // additional led
     DigitalOut additional_led(PB_9); // create DigitalOut object to command extra led (you need to add an aditional resistor, e.g. 220...500 Ohm)
 
-    // ------------- Vehicle geometry -------------
 
     // ------------- Motoren -------------
     DigitalOut enable_motors(PB_15);                    // create DigitalOut object to enable dc motors
@@ -143,14 +139,6 @@ int main()
     // fuer ruck beseitigung; maximale beschleunigung festssetzen
     positionController_M2.setMaxAccelerationRPS(maxAccelerationRPS_M2);
 
-    // ------------- M3 (closed-loop position controlled) -------------
-   /* const int M3_gear = 0;
-    FastPWM pwm_M3(PA_10);                      // Pin is correct!
-    EncoderCounter  encoder_M3(PA_0, PA_1);     // Pin is correct!
-    */
-
-    // ------------- Sensoren -------------
-    // ------------- States and actual state for the machine -------------
 
     const int GRYPER_STATE_INIT = 0; 
     const int GRYPER_STATE_ARM_DOWN_1 = 1;
@@ -382,7 +370,7 @@ int main()
                                 r_forwards = 0;
                             }
                          }
-                         printf("Juhuuu de scheiss het klappet:)\n");
+                         
                          ruetler_ok = 1;
                          positionController_M2.setDesiredRotation(positionController_M2.getRotation());
                          positionController_M1.setDesiredRotation(positionController_M1.getRotation());
@@ -409,7 +397,6 @@ int main()
                     angle_arm_down_1 = -0.33;
 
                     if(!arm_down_3) {
-                        printf("Huere scheiss");
                         act_pos = positionController_M2.getRotation();
                         positionController_M2.setDesiredRotation(act_pos + angle_arm_down_1); // 1.0f = 360°, 0.222f = 80°
                         arm_down_3 = 1; 
@@ -418,7 +405,6 @@ int main()
                     if(positionController_M2.getRotation() <= act_pos + angle_arm_down_1 + 0.001f && arm_down_3){
                         printf("Arm down 2");
                         gryper_state_actual = GRYPER_STATE_FORWARD_2;
-                        //gryper_state_actual = GRYPER_STATE_INIT;
                     }
                     break;
                     
@@ -436,7 +422,6 @@ int main()
 
                     if(positionController_M1.getRotation() >= act_pos_m1 + convertDistanceToRotation(DISTANCE_2, WHEEL_DIAMETER)-0.1f && forward_2){
                         gryper_state_actual = GRYPER_STATE_INIT;
-                        //gryper_state_actual = GRYPER_STATE_FINAL;
                     }
                     break;
 
