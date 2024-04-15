@@ -1,35 +1,45 @@
-#include "mbed.h"
+#include "main.h"
+#include <cstdint>
 
-// pes board pin map
-#include "pm2_drivers/PESBoardPinMap.h"
-
-// drivers
-#include "pm2_drivers/DebounceIn.h"
-
-bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
+// bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
-bool do_reset_all_once = false;    // this variable is used to reset certain variables and objects and
+// bool do_reset_all_once = false;    // this variable is used to reset certain variables and objects and
                                    // shows how you can run a code segment only once
 
 // objects for user button (blue button) handling on nucleo board
-DebounceIn user_button(USER_BUTTON); // create DebounceIn object to evaluate the user button
+// DebounceIn user_button(USER_BUTTON); // create DebounceIn object to evaluate the user button
                                      // falling and rising edge
-void toggle_do_execute_main_fcn();   // custom function which is getting executed when user
+// void toggle_do_execute_main_fcn();   // custom function which is getting executed when user
                                      // button gets pressed, definition below
 
 // main runs as an own thread
+
+// ------------- System Variables -------------
+// for exapmle:
+// int length_cap = 10; // in mm
+// int hight_cap = 100; // in mm
+
+// ------------- Operation Variables -------------
+
+int8_t sum_endstop = 0;
+
+
+
+
+
+
+
+
+
+
 int main()
 {
-    // attach button fall function address to user button object, button has a pull-up resistor
     user_button.fall(&toggle_do_execute_main_fcn);
 
-    // while loop gets executed every main_task_period_ms milliseconds, this is a
-    // simple approach to repeatedly execute main
-    const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, there for
-                                        // the main task will run 50 times per second
-    Timer main_task_timer;              // create Timer object which we use to run the main task
-                                        // every main_task_period_ms
 
+    const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, there for
+    Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
+                                         
     // led on nucleo board
     DigitalOut user_led(USER_LED);
 
@@ -40,15 +50,15 @@ int main()
 
     // ------------- States and actual state for the machine -------------
     const int CAPTOR_STATE_INIT = 0; // Alle Endstops auf 0
-    const int CAPTOR_STATE_000 = 0; // Alle Endstops auf 0
-    const int CAPTOR_STATE_100 = 1; 
-    const int CAPTOR_STATE_110 = 2; 
-    const int CAPTOR_STATE_111 = 3; 
-    const int CAPTOR_STATE_011 = 4; 
-    const int CAPTOR_STATE_001 = 5; 
-    const int CAPTOR_STATE_010_error = 6; // Error case
-    const int CAPTOR_STATE_101_error = 7; // Erorr case
-    const int CAPTOR_STATE_error = 8; 
+    const int CAPTOR_STATE_000 = 1; // Alle Endstops auf 0
+    const int CAPTOR_STATE_100 = 2; 
+    const int CAPTOR_STATE_110 = 3; 
+    const int CAPTOR_STATE_111 = 4; 
+    const int CAPTOR_STATE_011 = 5; 
+    const int CAPTOR_STATE_001 = 6; 
+    const int CAPTOR_STATE_010_error = 7; // Error case
+    const int CAPTOR_STATE_101_error = 8; // Erorr case
+    const int CAPTOR_STATE_error = 9; 
    
     int captor_state_actual = CAPTOR_STATE_INIT;
 
@@ -71,8 +81,54 @@ int main()
             switch (captor_state_actual){
 
                 case CAPTOR_STATE_INIT:
-                    // Set all endstops to 0
-                    captor_state_actual = CAPTOR_STATE_000;
+                    sum_endstop = 0;
+                    sum_endstop |= endstop1.read(); 
+                    sum_endstop |= endstop2.read(); 
+                    sum_endstop |= endstop3.read(); 
+                    /* Mapping table:
+                    000 : 0
+                    100 : 4
+                    110 : 6
+                    111 : 7
+                    011 : 3
+                    001 : 1
+                    101 : 5
+                    010 : 2
+                    */
+
+                    if(sum_endstop == 0) {
+                        captor_state_actual = CAPTOR_STATE_000;
+                        break;
+                        
+                    } else if (sum_endstop == 4){
+                        captor_state_actual = CAPTOR_STATE_100;
+                        break;
+
+                    } else if (sum_endstop == 6){
+                        captor_state_actual = CAPTOR_STATE_110;
+                        break;
+
+                    }else if (sum_endstop == 7){
+                        captor_state_actual = CAPTOR_STATE_111;
+                        break;
+
+                    }else if (sum_endstop == 3){
+                        captor_state_actual = CAPTOR_STATE_011;
+                        break;
+
+                    }else if (sum_endstop == 1){
+                        captor_state_actual = CAPTOR_STATE_001;
+                        break;
+
+                    }else if (sum_endstop == 5){
+                        captor_state_actual = CAPTOR_STATE_101_error;
+                        break;
+
+                    }else if (sum_endstop == 2){
+                        captor_state_actual = CAPTOR_STATE_010_error;
+                        break;
+
+                    }
                     break;
                 
                 case CAPTOR_STATE_000:

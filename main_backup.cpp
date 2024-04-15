@@ -1,3 +1,4 @@
+/*
 #include <mbed.h>
 
 #include "PM2_Drivers.h"
@@ -266,3 +267,4 @@ int drive_belt(int velocity, int cylecounter);
 
 // show Error messages on LED's
 void show_LED(int error_code);
+*/

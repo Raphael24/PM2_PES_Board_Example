@@ -1,11 +1,15 @@
 #pragma once 
 
-#include <cstdio>
-#include <mbed.h>
-#include <ctime>
+#include "mbed.h"
 
+// pes board pin map
+#include "pm2_drivers/PESBoardPinMap.h"
+
+// drivers
 #include "pm2_drivers/DebounceIn.h"
-
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
 
 
 # define M_PI 3.14159265358979323846 // number pi, an example in case you need it
@@ -21,11 +25,23 @@ bool start_pressed = false;
 
 // objects for user button (blue button) handling on nucleo board
 //DebounceIn user_button(PC_13);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
-DebounceIn user_button(PB_12);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
+DebounceIn user_button(USER_BUTTON);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
+DebounceIn btn_cmd1();
+DebounceIn btn_cmd2();
+DebounceIn btn_cmd3();
 
+DebounceIn endstop1(PC_10);
+DebounceIn endstop2(PC_11);
+DebounceIn endstop3(PC_12);
+
+DigitalOut Led_1(PC_13);
+DigitalOut Led_2(PC_14);
+DigitalOut Led_3(PC_15);
 
 
 // define functions
+void toggle_do_execute_main_fcn();   // custom function which is getting executed when user
+                                     // button gets pressed, definition below
 
 bool read_cap_coulor(void);
 bool drive_belt(void);
