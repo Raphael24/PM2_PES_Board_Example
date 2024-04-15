@@ -38,6 +38,22 @@ int main()
     // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via a resistor
     DigitalOut led1(PB_9);
 
+    // ------------- States and actual state for the machine -------------
+    const int CAPTOR_STATE_INIT = 0; // Alle Endstops auf 0
+    const int CAPTOR_STATE_000 = 0; // Alle Endstops auf 0
+    const int CAPTOR_STATE_100 = 1; 
+    const int CAPTOR_STATE_110 = 2; 
+    const int CAPTOR_STATE_111 = 3; 
+    const int CAPTOR_STATE_011 = 4; 
+    const int CAPTOR_STATE_001 = 5; 
+    const int CAPTOR_STATE_010_error = 6; // Error case
+    const int CAPTOR_STATE_101_error = 7; // Erorr case
+    const int CAPTOR_STATE_error = 8; 
+   
+    int captor_state_actual = CAPTOR_STATE_INIT;
+
+
+
     // start timer
     main_task_timer.start();
 
@@ -49,6 +65,63 @@ int main()
 
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
+
+
+            // ------------- State machine -------------
+            switch (captor_state_actual){
+
+                case CAPTOR_STATE_INIT:
+                    // Set all endstops to 0
+                    captor_state_actual = CAPTOR_STATE_000;
+                    break;
+                
+                case CAPTOR_STATE_000:
+                    captor_state_actual = CAPTOR_STATE_100;
+                    break;
+                
+                case CAPTOR_STATE_100:
+                    captor_state_actual = CAPTOR_STATE_110;
+                    break;
+                
+                case CAPTOR_STATE_110:
+                    captor_state_actual = CAPTOR_STATE_111;
+                    break;
+                
+                case CAPTOR_STATE_111:
+                    captor_state_actual = CAPTOR_STATE_011;
+                    break;
+                
+                case CAPTOR_STATE_011:
+                    captor_state_actual = CAPTOR_STATE_001;
+                    break;
+                
+                case CAPTOR_STATE_001:
+                    captor_state_actual = CAPTOR_STATE_010_error;
+                    break;
+                
+                case CAPTOR_STATE_010_error:
+                    // Error case
+                    captor_state_actual = CAPTOR_STATE_error;
+                    break;
+                
+                case CAPTOR_STATE_101_error:
+                    // Error case
+                    captor_state_actual = CAPTOR_STATE_error;
+                    break;
+                
+                case CAPTOR_STATE_error:
+                    // Error case
+                    captor_state_actual = CAPTOR_STATE_INIT;
+                    break;
+                
+                default:
+                    // do nothing 
+                    captor_state_actual = CAPTOR_STATE_INIT;
+                    break;
+
+
+
+            }
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -77,7 +150,25 @@ void toggle_do_execute_main_fcn()
         do_reset_all_once = true;
 }
 
+// Farbsensor
+bool read_cap_coulor(void){
+    // return if level is correct
+    return true;
+}
 
+// Decapper
+bool drive_belt(void);
+// return 1 if decapping is succesful
+// return 0 if decapping is not succesful
 
+// Ultrasonic / liquid level
+bool read_liquid_level(void) {
+    // return if level is correct
+    return true;
+}
 
-// test Aenderung 1
+// Foerderband fahren
+int drive_belt(int velocity, int cylecounter);
+
+// show Error messages on LED's
+void show_LED(int error_code);
