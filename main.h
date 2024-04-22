@@ -26,17 +26,15 @@ bool start_pressed = false;
 // objects for user button (blue button) handling on nucleo board
 //DebounceIn user_button(PC_13);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
 DebounceIn user_button(USER_BUTTON);  // create InterruptIn interface object to evaluate user button falling and rising edge (no blocking code in ISR)
-DebounceIn btn_cmd1();
-DebounceIn btn_cmd2();
-DebounceIn btn_cmd3();
+//DebounceIn btn_cmd1();
+//DebounceIn btn_cmd2();
+//DebounceIn btn_cmd3();
 
-DebounceIn endstop1(PC_10);
-DebounceIn endstop2(PC_11);
-DebounceIn endstop3(PC_12);
 
-DigitalOut Led_1(PC_13);
-DigitalOut Led_2(PC_14);
-DigitalOut Led_3(PC_15);
+
+//DigitalOut Led_1(PC_13);
+//DigitalOut Led_2(PC_14);
+//DigitalOut Led_3(PC_15);
 
 
 // define functions

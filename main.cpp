@@ -1,5 +1,7 @@
 #include "main.h"
 #include <cstdint>
+#include "pm2_drivers/FastPWM/FastPWM.h"
+#include "pm2_drivers/DCMotor.h"
 
 // bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -21,13 +23,7 @@
 
 // ------------- Operation Variables -------------
 
-int8_t sum_endstop = 0;
-
-
-
-
-
-
+int8_t sum_endstop = 0x0;
 
 
 
@@ -39,7 +35,11 @@ int main()
 
     const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, there for
     Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
-                                         
+
+    DebounceIn endstop1(PB_2, PullDown);
+    DebounceIn endstop2(PC_8, PullDown);
+    DebounceIn endstop3(PC_6, PullDown);
+
     // led on nucleo board
     DigitalOut user_led(USER_LED);
 
@@ -47,6 +47,26 @@ int main()
     // create DigitalOut object to command extra led, you need to add an aditional resistor, e.g. 220...500 Ohm
     // a led has an anode (+) and a cathode (-), the cathode needs to be connected to ground via a resistor
     DigitalOut led1(PB_9);
+
+
+    // ------------- Motoren -------------
+    const float voltage_max = 12.0f; // maximum voltage of battery packs, adjust this to
+                                    // 6.0f V if you only use one battery pack
+
+    DigitalOut enable_motors(PB_ENABLE_DCMOTORS);
+    // motor M1
+    FastPWM pwm_M2(PB_PWM_M2); // create FastPWM object to command motor M1
+    enable_motors = 1; // setting this once would actually be enough
+    const float gear_ratio_M2 = 78.125f; // gear ratio
+    const float kn_M2 = 180.0f / 12.0f;  // motor constant [rpm/V]
+    // it is assumed that only one motor is available, there fore
+    // we use the pins from M1, so you can leave it connected to M1
+    DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
+    // enable the motion planner for smooth movement
+    motor_M2.enableMotionPlanner(true);
+    // limit max. acceleration to half of the default acceleration
+    motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.5f);
+    motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
     // ------------- States and actual state for the machine -------------
     const int CAPTOR_STATE_INIT = 0; // Alle Endstops auf 0
@@ -76,15 +96,17 @@ int main()
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
 
-
             // ------------- State machine -------------
             switch (captor_state_actual){
 
                 case CAPTOR_STATE_INIT:
+                    motor_M2.setRotation(motor_M2.getRotation());
                     sum_endstop = 0;
-                    sum_endstop |= endstop1.read(); 
-                    sum_endstop |= endstop2.read(); 
-                    sum_endstop |= endstop3.read(); 
+                    sum_endstop |= (!(endstop1.read()) << 2); 
+                    sum_endstop |= (!(endstop2.read()) << 1); 
+                    sum_endstop |= !(endstop3.read()); 
+                    printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
+                    printf("Summeendstops: %d \n", sum_endstop);
                     /* Mapping table:
                     000 : 0
                     100 : 4
@@ -98,41 +120,55 @@ int main()
 
                     if(sum_endstop == 0) {
                         captor_state_actual = CAPTOR_STATE_000;
+                        printf("Schritt CAPTOR_STATE_000 wurde aktiviert\n");
                         break;
                         
                     } else if (sum_endstop == 4){
                         captor_state_actual = CAPTOR_STATE_100;
+                        printf("Schritt CAPTOR_STATE_100 wurde aktiviert\n");
                         break;
 
                     } else if (sum_endstop == 6){
                         captor_state_actual = CAPTOR_STATE_110;
+                        printf("Schritt CAPTOR_STATE_110 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 7){
                         captor_state_actual = CAPTOR_STATE_111;
+                        printf("Schritt CAPTOR_STATE_111 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 3){
                         captor_state_actual = CAPTOR_STATE_011;
+                        printf("Schritt CAPTOR_STATE_011 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 1){
                         captor_state_actual = CAPTOR_STATE_001;
+                        printf("Schritt CAPTOR_STATE_001 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 5){
                         captor_state_actual = CAPTOR_STATE_101_error;
+                        printf("Schritt CAPTOR_STATE_101_error wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 2){
                         captor_state_actual = CAPTOR_STATE_010_error;
+                        printf("Schritt CAPTOR_STATE_010_error wurde aktiviert\n");
                         break;
 
                     }
                     break;
                 
                 case CAPTOR_STATE_000:
-                    captor_state_actual = CAPTOR_STATE_100;
+                    printf("Run CAPTOR_STATE_000\n");
+                    motor_M2.setRotation(3.0f);
+                    printf("Position: %f", motor_M2.getRotation());
+                    if(motor_M2.getRotation() >= 3.0){
+                        motor_M2.setRotation(0.0f);
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    } 
                     break;
                 
                 case CAPTOR_STATE_100:
