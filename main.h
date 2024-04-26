@@ -2,6 +2,7 @@
 
 #include "mbed.h"
 
+
 // pes board pin map
 #include "pm2_drivers/PESBoardPinMap.h"
 
@@ -11,6 +12,13 @@
 #include <cstdio>
 #include <ctime>
 
+
+#include "pm2_drivers/FastPWM/FastPWM.h"
+#include "pm2_drivers/DCMotor.h"
+
+#include "pm2_drivers/UltrasonicSensor.h"
+
+//#include <VL53L0X.h>
 
 # define M_PI 3.14159265358979323846 // number pi, an example in case you need it
 
@@ -35,6 +43,14 @@ DebounceIn user_button(USER_BUTTON);  // create InterruptIn interface object to 
 //DigitalOut Led_1(PC_13);
 //DigitalOut Led_2(PC_14);
 //DigitalOut Led_3(PC_15);
+
+//define Sensors
+// ultra sonic sensor
+UltrasonicSensor us_sensor(PB_D3);
+float us_distance_cm = 0.0f;
+
+
+
 
 
 // define functions

@@ -1,11 +1,8 @@
 #include "main.h"
-#include <cstdint>
-
-#include "pm2_drivers/FastPWM/FastPWM.h"
-#include "pm2_drivers/DCMotor.h"
-
-
-// Ivo here
+//#include <cstdio>
+//#include <VL53L0X/VL53L0X.h>
+#include <VL53L0X.h>
+//#include <cstdint>
 
 // bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -30,15 +27,64 @@
 int8_t sum_endstop = 0x0;
 
 
+// define range sensor
+//DigitalOut hsens_power(PB_7,1); // power on hSens terminals on CORE2 romrap: funktioniert nicht
+//DevI2C i2c(PB_9, PB_7); // SDA, SC
+//VL53L0X sensor(PB_9, PB_8); //PB_9 = Data, PB_8 = Clock:
+
+
+
+
 
 
 int main()
 {
-    user_button.fall(&toggle_do_execute_main_fcn);
+    //DevI2C i2c(PB_9, PB_8);
+    Timer zeit;
+    //PinName NC_1 = NC;
+    // Das könnte die Speisung (PowerPin) des Sensors sein
+    //DigitalOut gpio0(PB_12); //romrap: nochmal überprüfen
 
+
+    int8_t dev_addr = 0x52;
+    
+   // VL53L0X laser_sensor(&i2c, &gpio0, NC_1, dev_addr);
+    uint32_t distance = 0;
+    
+    //laser_sensor.setTimeout(500000);
+
+    //printf("INIT: %d\n", laser_sensor.init(true));
+    ////laser_sensor.setAddress(0x52);
+    //printf("Addresse: %d\n", laser_sensor.getAddress()); // Addresse ist 0x52
+    //printf("Rate: %f\n", laser_sensor.getSignalRateLimit());
+    //printf("Measurement Timing Budget: %d\n", laser_sensor.getMeasurementTimingBudget());
+    //printf("Timeout: %d\n", laser_sensor.getTimeout());
+
+    I2C         i2c(PB_9, PB_8);
+    VL53L0X     vl_sensor(&i2c);
+    DigitalOut  vl_shutdown(PB_12);
+    //Serial      usb(USBTX, USBRX, 115200);
+
+     
+    printf("Single VL53L0X\n\n\r");
+
+    vl_shutdown = 1;  //turn VL53L0X on
+    //vl_sensor.setDeviceAddress(0x52);
+    vl_sensor.init();
+    vl_sensor.setModeContinuous();
+    vl_sensor.startContinuous();
+    
+    while(1)
+    {
+      wait_us(100000);
+      printf("%4imm\n\r", vl_sensor.getRangeMillimeters());
+    }
+
+    user_button.fall(&toggle_do_execute_main_fcn);
+    
 
     const int main_task_period_ms = 20; // define main task period time in ms e.g. 20 ms, there for
-    Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
+    //Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
 
     DebounceIn endstop1(PB_2, PullDown);
     DebounceIn endstop2(PC_8, PullDown);
@@ -83,12 +129,14 @@ int main()
     const int CAPTOR_STATE_010_error = 7; // Error case
     const int CAPTOR_STATE_101_error = 8; // Erorr case
     const int CAPTOR_STATE_error = 9; 
+    const int CAPTOR_STATE_TEST = 20;
    
     int captor_state_actual = CAPTOR_STATE_INIT;
 
 
 
     // start timer
+    Timer main_task_timer;              // create Timer object which we use to run the main task every main_task_period_ms
     main_task_timer.start();
 
     // this loop will run forever
@@ -104,11 +152,13 @@ int main()
             switch (captor_state_actual){
 
                 case CAPTOR_STATE_INIT:
+                printf("CAPTOR_STATE_INIT");
                     motor_M2.setRotation(motor_M2.getRotation());
                     sum_endstop = 0;
                     sum_endstop |= (!(endstop1.read()) << 2); 
                     sum_endstop |= (!(endstop2.read()) << 1); 
                     sum_endstop |= !(endstop3.read()); 
+                    sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
                     printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
                     printf("Summeendstops: %d \n", sum_endstop);
                     /* Mapping table:
@@ -121,6 +171,7 @@ int main()
                     101 : 5
                     010 : 2
                     */
+
 
                     if(sum_endstop == 0) {
                         captor_state_actual = CAPTOR_STATE_000;
@@ -162,8 +213,31 @@ int main()
                         printf("Schritt CAPTOR_STATE_010_error wurde aktiviert\n");
                         break;
 
+                    } else if (sum_endstop == 20){
+                        captor_state_actual = CAPTOR_STATE_TEST;
+                        printf("Schritt CAPTOR_STATE_TEST wurde aktiviert\n");
                     }
                     break;
+
+                case CAPTOR_STATE_TEST:
+                    printf("Run TEST2\n");
+                    //printf("Distance: %d", read_liquid_level());
+                    //read_liquid_level();
+                    //laser_sensor.VL53L0X_on(); // Speisung einschalten
+
+                    //laser_sensor.prepare();
+                    //laser_sensor.range_start_continuous_mode();
+
+                    //laser_sensor.get_distance(&distance);
+                    printf("Distanz: %d", distance);
+                    
+                    printf("Reading done\n");
+                    wait_us(100);
+
+
+                    captor_state_actual = CAPTOR_STATE_TEST;
+                    break;
+
                 
                 case CAPTOR_STATE_000:
                     printf("Run CAPTOR_STATE_000\n");
@@ -247,7 +321,7 @@ void toggle_do_execute_main_fcn()
 }
 
 // Farbsensor
-bool read_cap_coulor(void){
+bool read_cap_color(void){
     // return if level is correct
     return true;
 }
@@ -258,8 +332,24 @@ bool drive_belt(void);
 // return 0 if decapping is not succesful
 
 // Ultrasonic / liquid level
-bool read_liquid_level(void) {
+bool read_liquid_level() {
     // return if level is correct
+    printf("FUN: read liquidlevel: START");
+    //sensor.init();
+    ////printf("Initialisation completed!\r\n");
+    //sensor.setTimeout(500);
+    ////sensor.setMeasurementTimingBudget(200000);
+    //sensor.startContinuous(100);
+    ////printf("%u\r\n", sensor.readRangeContinuousMillimeters());
+    //if (sensor.timeoutOccurred())
+    //{
+    //    printf("TIMEOUT!\r\n");
+    //}
+    //printf("%u\r\n", sensor.readRangeContinuousMillimeters());
+    //us_distance_cm = us_sensor.read();
+    //printf("Distanz US-Sensor: %f", us_distance_cm);
+    //thread_sleep_for(1);
+
     return true;
 }
 
