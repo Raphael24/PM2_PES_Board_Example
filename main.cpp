@@ -2,7 +2,7 @@
 //#include <cstdio>
 //#include <VL53L0X/VL53L0X.h>
 #include <VL53L0X.h>
-//#include <cstdint>
+#include "TCS3472_I2C.h"
 
 // bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -36,7 +36,6 @@ int8_t sum_endstop = 0x0;
 
 
 
-
 int main()
 {
     //DevI2C i2c(PB_9, PB_8);
@@ -64,6 +63,12 @@ int main()
     VL53L0X     vl_sensor(&i2c);
     DigitalOut  vl_shutdown(PB_12);
     //Serial      usb(USBTX, USBRX, 115200);
+    //romrap: TCS3472_I2C - lib funktioniert nicht 
+    TCS3472_I2C rgb_sensor(PB_9, PB_8);
+    rgb_sensor.enablePowerAndRGBC();
+    rgb_sensor.setIntegrationTime(100);
+    int rgb_readings[4];
+   
 
      
     printf("Single VL53L0X\n\n\r");
@@ -76,8 +81,24 @@ int main()
     
     while(1)
     {
-      wait_us(100000);
-      printf("%4imm\n\r", vl_sensor.getRangeMillimeters());
+      wait_us(10000);
+      printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
+      rgb_sensor.getAllColors(rgb_readings);
+      printf( "red: %d, green: %d, blue: %d, clear: %d", rgb_readings[0], rgb_readings[1], rgb_readings[2], rgb_readings[3]);
+      //wait_us(1000);
+
+      //uint16_t clear, red, green, blue;
+      //tcs.setInterrupt(false);      // turn on LED
+      //tcs.getRawData(&red, &green, &blue, &clear);
+      //tcs.setInterrupt(true);  // turn off LED
+      //printf("\t%d, %d, %d, %d\r\n", clear, red, green, blue);
+      //// Figure out some basic hex code for visualization
+      //uint32_t sum = clear;
+      //float r, g, b;
+      //r = red; r /= sum;
+      //g = green; g /= sum;
+      //b = blue; b /= sum;
+      //r *= 256; g *= 256; b *= 256;
     }
 
     user_button.fall(&toggle_do_execute_main_fcn);

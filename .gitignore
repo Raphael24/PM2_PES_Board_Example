@@ -6,3 +6,4 @@ mbed-os
 pm2_drivers
 
 VL53L0X
+TCS3472_I2C
