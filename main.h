@@ -64,8 +64,7 @@ bool drive_belt(void);
 bool read_liquid_level(void);
 int drive_belt(int velocity, int cylecounter);
 void show_LED(int error_code);
-
-
+bool decap();
 
 
 
