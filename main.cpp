@@ -75,8 +75,9 @@ int main()
 
     I2C         i2c(PB_9, PB_8);
     VL53L0X     vl_sensor(&i2c);
-    DigitalOut  vl_shutdown(PB_12);
+    DigitalOut  vl_shutdown(PB_12); //romrap: eventuell löschen
     //Serial      usb(USBTX, USBRX, 115200);
+
     //romrap: TCS3472_I2C - lib funktioniert nicht 
     TCS3472_I2C rgb_sensor(PB_9, PB_8);
     rgb_sensor.enablePowerAndRGBC();
@@ -342,7 +343,7 @@ int main()
 
             }
         } else {
-            printf("STOP PROGRAM\n");
+            //printf("STOP PROGRAM\n");
             // the following code block gets executed only once
             if (do_reset_all_once) {
                 do_reset_all_once = false;
@@ -351,7 +352,7 @@ int main()
                 led1 = 0;
             }
         }
-        printf("THIS is the Mainloop\n");
+        //printf("THIS is the Mainloop\n");
 
         // toggling the user led
         user_led = !user_led;

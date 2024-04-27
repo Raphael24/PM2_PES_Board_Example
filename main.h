@@ -16,7 +16,7 @@
 #include "pm2_drivers/FastPWM/FastPWM.h"
 #include "pm2_drivers/DCMotor.h"
 
-#include "pm2_drivers/UltrasonicSensor.h"
+//#include "pm2_drivers/UltrasonicSensor.h"
 
 
 // The Laser-lib is from: http://os.mbed.com/users/joelvonrotz/code/VL53L0X/
@@ -48,8 +48,8 @@ DebounceIn user_button(USER_BUTTON);  // create InterruptIn interface object to 
 
 //define Sensors
 // ultra sonic sensor
-UltrasonicSensor us_sensor(PB_D3);
-float us_distance_cm = 0.0f;
+//UltrasonicSensor us_sensor(PB_D3);
+//float us_distance_cm = 0.0f;
 
 
 
