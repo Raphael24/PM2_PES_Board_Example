@@ -76,11 +76,11 @@ int main()
     //vl_sensor.startContinuous();
     
     // while loop for testcase
-    while(0)
-    {
-        wait_us(10000);
-        printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
-    }
+    //while(0)
+    //{
+    //    wait_us(10000);
+    //    printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
+    //}
 
     user_button.fall(&toggle_do_execute_main_fcn);
     
@@ -112,8 +112,8 @@ int main()
 
 
     // motor M1 (speed controlled, openloop)
-    pwm_M1.write(0.5f); //   0V is applied to the motor
-    //pwm_M1.write(1.0f); //  12V is applied to the motor
+    //pwm_M1.write(0.0f); //   0V is applied to the motor
+    //pwm_M1.write(0.5f); //  12V is applied to the motor
     //pwm_M1.write(0.0f); // -12V is applied to motor
 
 
@@ -412,13 +412,13 @@ bool read_liquid_level() {
 
 // Foerderband fahren
 bool drive_belt_forward(){
-    pwm_M1.write(0.0f);
+    pwm_M1.write(1.0f);
     printf("Motor drive Forward\n");
     return true;
 }
 
 bool drive_belt_backward() {
-    pwm_M1.write(1.0f);
+    pwm_M1.write(0.0f);
     printf("Motor drive Backward\n");
     return true;
 }
