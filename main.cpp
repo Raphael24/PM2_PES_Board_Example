@@ -1,8 +1,6 @@
 #include "main.h"
-//#include <cstdio>
-//#include <VL53L0X/VL53L0X.h>
 #include <VL53L0X.h>
-#include "TCS3472_I2C.h"
+
 
 // bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -48,72 +46,41 @@ DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, volt
 // motor M1 (speed controlled, openloop)
 FastPWM pwm_M1(PB_PWM_M1); // create FastPWM object to command motor M1
 
+// ------------- Sensoren -------------
+I2C         i2c(PB_9, PB_8);
+VL53L0X     vl_sensor(&i2c);
+DigitalOut  vl_shutdown(PB_12); //romrap: eventuell löschen
+
 
 
 int main()
 {
+    printf("Program init\n\n\r");
     //DevI2C i2c(PB_9, PB_8);
     Timer zeit;
     //PinName NC_1 = NC;
     // Das könnte die Speisung (PowerPin) des Sensors sein
     //DigitalOut gpio0(PB_12); //romrap: nochmal überprüfen
-
-
     int8_t dev_addr = 0x52;
-    
-   // VL53L0X laser_sensor(&i2c, &gpio0, NC_1, dev_addr);
     uint32_t distance = 0;
     
-    //laser_sensor.setTimeout(500000);
-
-    //printf("INIT: %d\n", laser_sensor.init(true));
-    ////laser_sensor.setAddress(0x52);
-    //printf("Addresse: %d\n", laser_sensor.getAddress()); // Addresse ist 0x52
-    //printf("Rate: %f\n", laser_sensor.getSignalRateLimit());
-    //printf("Measurement Timing Budget: %d\n", laser_sensor.getMeasurementTimingBudget());
-    //printf("Timeout: %d\n", laser_sensor.getTimeout());
-
-    I2C         i2c(PB_9, PB_8);
-    VL53L0X     vl_sensor(&i2c);
-    DigitalOut  vl_shutdown(PB_12); //romrap: eventuell löschen
+    //I2C         i2c(PB_9, PB_8);
+    //VL53L0X     vl_sensor(&i2c);
+    //DigitalOut  vl_shutdown(PB_12); //romrap: eventuell löschen
     //Serial      usb(USBTX, USBRX, 115200);
 
-    //romrap: TCS3472_I2C - lib funktioniert nicht 
-    TCS3472_I2C rgb_sensor(PB_9, PB_8);
-    rgb_sensor.enablePowerAndRGBC();
-    rgb_sensor.setIntegrationTime(100);
-    int rgb_readings[4];
-   
-
-    printf("Single VL53L0X\n\n\r");
-
-    vl_shutdown = 1;  //turn VL53L0X on
+    //vl_shutdown = 1;  //turn VL53L0X on
     //vl_sensor.setDeviceAddress(0x52);
     vl_sensor.init();
-    vl_sensor.setModeContinuous();
-    vl_sensor.startContinuous();
+    //vl_sensor.setModeContinuous();    
+    //vl_sensor.startContinuous();
     
-    //while(1)
-    //{
-    wait_us(10000);
-    printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
-    rgb_sensor.getAllColors(rgb_readings);
-    printf( "red: %d, green: %d, blue: %d, clear: %d", rgb_readings[0], rgb_readings[1], rgb_readings[2], rgb_readings[3]);
-      //wait_us(1000);
-
-      //uint16_t clear, red, green, blue;
-      //tcs.setInterrupt(false);      // turn on LED
-      //tcs.getRawData(&red, &green, &blue, &clear);
-      //tcs.setInterrupt(true);  // turn off LED
-      //printf("\t%d, %d, %d, %d\r\n", clear, red, green, blue);
-      //// Figure out some basic hex code for visualization
-      //uint32_t sum = clear;
-      //float r, g, b;
-      //r = red; r /= sum;
-      //g = green; g /= sum;
-      //b = blue; b /= sum;
-      //r *= 256; g *= 256; b *= 256;
-    //}
+    // while loop for testcase
+    while(0)
+    {
+        wait_us(10000);
+        printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
+    }
 
     user_button.fall(&toggle_do_execute_main_fcn);
     
@@ -167,6 +134,7 @@ int main()
     const int CAPTOR_STATE_TEST = 20;
    
     int captor_state_actual = CAPTOR_STATE_INIT;
+    int act_step_activ = 0;
     bool check_decap = false;
 
 
@@ -178,6 +146,7 @@ int main()
     // this loop will run forever
     while (true) {
         main_task_timer.reset();
+        //printf("THIS is the Mainloop3: %d\n", do_execute_main_task);
 
         if (do_execute_main_task) {
 
@@ -185,7 +154,7 @@ int main()
             led1 = 1;
 
             // ------------- State machine -------------
-            switch (captor_state_actual){
+            switch(captor_state_actual){
 
                 case CAPTOR_STATE_INIT:
                     printf("CAPTOR_STATE_INIT\n");
@@ -196,8 +165,8 @@ int main()
                     sum_endstop |= (!(endstop2.read()) << 1); 
                     sum_endstop |= !(endstop3.read()); 
                     //sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
-                    printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
-                    printf("Summeendstops: %d \n", sum_endstop);
+                    //printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
+                    //printf("Summeendstops: %d \n", sum_endstop);
                     /* Mapping table:
                     000 : 0
                     100 : 4
@@ -208,50 +177,52 @@ int main()
                     101 : 5
                     010 : 2
                     */
-
-
-                    if(sum_endstop == 0) {
+                    if(sum_endstop == 0 or (act_step_activ and sum_endstop != 0)) {
+                        if (act_step_activ and sum_endstop == 0) {
+                            act_step_activ  = 0;
+                        }
+                        
                         captor_state_actual = CAPTOR_STATE_000;
                         printf("Schritt CAPTOR_STATE_000 wurde aktiviert\n");
                         break;
                         
-                    } else if (sum_endstop == 4){
+                    } else if (sum_endstop == 4 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_100;
                         printf("Schritt CAPTOR_STATE_100 wurde aktiviert\n");
                         break;
 
-                    } else if (sum_endstop == 6){
+                    } else if (sum_endstop == 6 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_110;
                         printf("Schritt CAPTOR_STATE_110 wurde aktiviert\n");
                         break;
 
-                    }else if (sum_endstop == 7){
+                    }else if (sum_endstop == 7 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_111;
                         printf("Schritt CAPTOR_STATE_111 wurde aktiviert\n");
                         break;
 
-                    }else if (sum_endstop == 3){
+                    }else if (sum_endstop == 3 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_011;
                         printf("Schritt CAPTOR_STATE_011 wurde aktiviert\n");
                         break;
 
-                    }else if (sum_endstop == 1){
+                    }else if (sum_endstop == 1 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_001;
                         printf("Schritt CAPTOR_STATE_001 wurde aktiviert\n");
                         break;
 
-                    }else if (sum_endstop == 5){
+                    }else if (sum_endstop == 5 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_101_error;
                         printf("Schritt CAPTOR_STATE_101_error wurde aktiviert\n");
                         break;
 
-                    }else if (sum_endstop == 2){
+                    }else if (sum_endstop == 2 and !act_step_activ){
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_010_error;
                         printf("Schritt CAPTOR_STATE_010_error wurde aktiviert\n");
@@ -261,61 +232,63 @@ int main()
                         pwm_M1.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_TEST;
                         printf("Schritt CAPTOR_STATE_TEST wurde aktiviert\n");
+                    } else {
+                        printf("Schritt CAPTOR_STATE_INIT wurde aktiviert\n");
+                        captor_state_actual = CAPTOR_STATE_INIT;
                     }
                     break;
 
+
+
                 case CAPTOR_STATE_TEST:
-                    printf("Run TEST2\n");
-                    //printf("Distance: %d", read_liquid_level());
-                    //read_liquid_level();
-                    //laser_sensor.VL53L0X_on(); // Speisung einschalten
-
-                    //laser_sensor.prepare();
-                    //laser_sensor.range_start_continuous_mode();
-
-                    //laser_sensor.get_distance(&distance);
-                    pwm_M1.write(0.0f);
-                    printf("Motor drive Forward\n");
-                    wait_us(500000); //wait 5s
-                    pwm_M1.write(1.0f);
-                    printf("Motor drive Backward\n");
-                    printf("Distanz: %d", distance);
-                    
-                    printf("Reading done\n");
-
-
-                    captor_state_actual = CAPTOR_STATE_TEST;
+                    printf("Run TEST: END\n");
+                    // Test something
+                    printf("Run TEST: END\n");
+                    captor_state_actual = CAPTOR_STATE_INIT;
                     break;
 
-                
                 case CAPTOR_STATE_000:
-                    check_decap =  decap();
-                    printf("Status decap: %d", check_decap);
+                    drive_belt_forward();
                     printf("Run CAPTOR_STATE_000\n");
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_100:
-                    pwm_M1.write(1.0f);
-                    printf("Motor drive Backward\n");
+                    read_liquid_level();
+                    drive_belt_forward();
+                    act_step_activ = 1;
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_110:
+                    read_liquid_level();
+                    check_decap =  decap();
+                    drive_belt_forward();
+                    act_step_activ = 1;
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_111:
+                    read_liquid_level();
+                    check_decap =  decap();
+                    read_liquid_level();
+                    drive_belt_forward();
+                    act_step_activ = 1;
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_011:
-                    
+                    check_decap =  decap();
+                    read_liquid_level();
+                    drive_belt_forward();
+                    act_step_activ = 1;
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_001:
-                    pwm_M1.write(0.0f);
+                    read_liquid_level();
+                    drive_belt_forward();
+                    act_step_activ = 1;
                     printf("Motor drive Forward\n");
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
@@ -343,7 +316,6 @@ int main()
 
             }
         } else {
-            //printf("STOP PROGRAM\n");
             // the following code block gets executed only once
             if (do_reset_all_once) {
                 do_reset_all_once = false;
@@ -352,14 +324,13 @@ int main()
                 led1 = 0;
             }
         }
-        //printf("THIS is the Mainloop\n");
 
         // toggling the user led
         user_led = !user_led;
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
-        int main_task_elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(main_task_timer.elapsed_time()).count();
-        thread_sleep_for(main_task_period_ms - main_task_elapsed_time_ms);
+        //int main_task_elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(main_task_timer.elapsed_time()).count();
+        //thread_sleep_for(main_task_period_ms - main_task_elapsed_time_ms);
     }
 }
 
@@ -403,13 +374,13 @@ bool decap(void){
         }
         wait_us(1000);
     }
-
     return true;
-
 }
 
 
-
+bool read_cap_coulor(){
+    return true;
+}
 // Decapper
 bool drive_belt(void);
 // return 1 if decapping is succesful
@@ -417,28 +388,40 @@ bool drive_belt(void);
 
 // Ultrasonic / liquid level
 bool read_liquid_level() {
-    // return if level is correct
-    printf("FUN: read liquidlevel: START");
-    //sensor.init();
-    ////printf("Initialisation completed!\r\n");
-    //sensor.setTimeout(500);
-    ////sensor.setMeasurementTimingBudget(200000);
-    //sensor.startContinuous(100);
-    ////printf("%u\r\n", sensor.readRangeContinuousMillimeters());
-    //if (sensor.timeoutOccurred())
-    //{
-    //    printf("TIMEOUT!\r\n");
-    //}
-    //printf("%u\r\n", sensor.readRangeContinuousMillimeters());
-    //us_distance_cm = us_sensor.read();
-    //printf("Distanz US-Sensor: %f", us_distance_cm);
-    //thread_sleep_for(1);
+    // return True if level is correct
+    int counter = 0;
+    uint16_t sum_liq_level = 0;
+    printf("FUN: read liquidlevel: START\n");
+    vl_sensor.setModeContinuous();
+    vl_sensor.startContinuous();
 
+    while(counter < 100) {
+        wait_us(10000);
+        if (vl_sensor.getRangeMillimeters() >= 2000) {
+            counter = counter;
+        }else {
+            sum_liq_level +=  vl_sensor.getRangeMillimeters();
+            counter++;
+        }
+        printf("%4d mm Act: %4d mm\r\n", sum_liq_level/counter, vl_sensor.getRangeMillimeters());
+    }
+    sum_liq_level /= counter;
+    printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
     return true;
 }
 
 // Foerderband fahren
-int drive_belt(int velocity, int cylecounter);
+bool drive_belt_forward(){
+    pwm_M1.write(0.0f);
+    printf("Motor drive Forward\n");
+    return true;
+}
+
+bool drive_belt_backward() {
+    pwm_M1.write(1.0f);
+    printf("Motor drive Backward\n");
+    return true;
+}
 
 // show Error messages on LED's
-void show_LED(int error_code);
+//void show_LED(int error_code);

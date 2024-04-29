@@ -59,10 +59,11 @@ DebounceIn user_button(USER_BUTTON);  // create InterruptIn interface object to 
 void toggle_do_execute_main_fcn();   // custom function which is getting executed when user
                                      // button gets pressed, definition below
 
-bool read_cap_coulor(void);
+bool read_cap_coulor();
 bool drive_belt(void);
 bool read_liquid_level(void);
-int drive_belt(int velocity, int cylecounter);
+bool drive_belt_forward();
+bool drive_belt_backward();
 void show_LED(int error_code);
 bool decap();
 
