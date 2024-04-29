@@ -91,6 +91,9 @@ int main()
     DebounceIn endstop1(PB_2, PullDown);
     DebounceIn endstop2(PC_8, PullDown);
     DebounceIn endstop3(PC_6, PullDown);
+    DebounceIn color_in_OK(PA_10, PullDown);
+
+
 
     // led on nucleo board
     DigitalOut user_led(USER_LED);
