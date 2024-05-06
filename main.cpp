@@ -1,5 +1,6 @@
 #include "main.h"
 #include <VL53L0X.h>
+#include <cstdint>
 
 
 // bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
@@ -44,14 +45,14 @@ const float kn_M2 = 180.0f / 12.0f;  // motor constant [rpm/V]
 DCMotor motor_M2(PB_PWM_M2, PB_ENC_A_M2, PB_ENC_B_M2, gear_ratio_M2, kn_M2, voltage_max);
 
 // motor M1 (speed controlled, openloop)
-FastPWM pwm_M1(PB_PWM_M1); // create FastPWM object to command motor M1
+FastPWM pwm_M3(PB_PWM_M3); // create FastPWM object to command motor M1
 
 // ------------- Sensoren -------------
 I2C         i2c(PB_9, PB_8);
 VL53L0X     vl_sensor(&i2c);
 DigitalOut  vl_shutdown(PB_12); //romrap: eventuell löschen
-
-
+DebounceIn color_in_OK(PA_15, PullDown);
+bool read_cap_color();
 
 int main()
 {
@@ -91,9 +92,6 @@ int main()
     DebounceIn endstop1(PB_2, PullDown);
     DebounceIn endstop2(PC_8, PullDown);
     DebounceIn endstop3(PC_6, PullDown);
-    DebounceIn color_in_OK(PA_10, PullDown);
-
-
 
     // led on nucleo board
     DigitalOut user_led(USER_LED);
@@ -114,10 +112,10 @@ int main()
     //motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
 
-    // motor M1 (speed controlled, openloop)
-    pwm_M1.write(0.5f); //   0V is applied to the motor
-    //pwm_M1.write(1.0f); //  12V is applied to the motor
-    //pwm_M1.write(0.0f); // -12V is applied to motor
+    // motor M3 (speed controlled, openloop)
+    pwm_M3.write(0.5f); //   0V is applied to the motor
+    //pwm_M3.write(1.0f); //  12V is applied to the motor
+    //pwm_M3.write(0.0f); // -12V is applied to motor
 
 
 
@@ -131,14 +129,27 @@ int main()
     const int CAPTOR_STATE_111 = 4; 
     const int CAPTOR_STATE_011 = 5; 
     const int CAPTOR_STATE_001 = 6; 
-    const int CAPTOR_STATE_010_error = 7; // Error case
-    const int CAPTOR_STATE_101_error = 8; // Erorr case
-    const int CAPTOR_STATE_error = 9; 
+    const int CAPTOR_STATE_COLOR_error = 7;
+    const int CAPTOR_STATE_DECAP_error = 8;
+    const int CAPTOR_STATE_LIQUID_error = 9;
+    const int CAPTOR_STATE_CENTRIFUGE_MISSING_error = 10;
     const int CAPTOR_STATE_TEST = 20;
+
+    // step counter
+    int step_count = 0;             // count the state 0 -> 8
+    bool last_step_done = false;    // state 001 done
+    int rack_count = 0;             // increment per 8 centrifuges - set to 0 after 8 counts
+    int wait_cycles = 240;          // base cycle delay for error routine
+    int wait_counter = 0;           // variable for count the delay cycles
+    int endstop_delay = 0;
+
+    // Step check
+    bool check_color = false;
+    bool check_decap = false;
+    bool check_level = false;
    
     int captor_state_actual = CAPTOR_STATE_INIT;
     int act_step_activ = 0;
-    bool check_decap = false;
 
 
 
@@ -161,15 +172,24 @@ int main()
 
                 case CAPTOR_STATE_INIT:
                     printf("CAPTOR_STATE_INIT\n");
-                    motor_M2.setRotation(motor_M2.getRotation());   //motor stop
-                    pwm_M1.write(0.5f);                             //motor stop
+                    check_color = false;
+                    check_decap = false;
+                    check_level = false;
+                    endstop_delay = 0;
+
+                    if(step_count == 8 || last_step_done == true){
+                        step_count = 0;
+                        rack_count++;
+                    }
+                    wait_us(200000); // 0.02s delay
+
                     sum_endstop = 0;
                     sum_endstop |= (!(endstop1.read()) << 2); 
                     sum_endstop |= (!(endstop2.read()) << 1); 
                     sum_endstop |= !(endstop3.read()); 
-                    //sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
-                    //printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
-                    //printf("Summeendstops: %d \n", sum_endstop);
+                    // sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
+                    // printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
+                    printf("Summeendstops: %d \n", sum_endstop);
                     /* Mapping table:
                     000 : 0
                     100 : 4
@@ -183,56 +203,56 @@ int main()
                     if(sum_endstop == 0 or (act_step_activ and sum_endstop != 0)) {
                         if (act_step_activ and sum_endstop == 0) {
                             act_step_activ  = 0;
-                        }
-                        
+                        }  
                         captor_state_actual = CAPTOR_STATE_000;
                         printf("Schritt CAPTOR_STATE_000 wurde aktiviert\n");
                         break;
-                        
-                    } else if (sum_endstop == 4 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
+                    }
+
+                    if (sum_endstop == 4 and !act_step_activ){
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_100;
                         printf("Schritt CAPTOR_STATE_100 wurde aktiviert\n");
                         break;
 
                     } else if (sum_endstop == 6 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_110;
                         printf("Schritt CAPTOR_STATE_110 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 7 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_111;
                         printf("Schritt CAPTOR_STATE_111 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 3 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_011;
                         printf("Schritt CAPTOR_STATE_011 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 1 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_001;
                         printf("Schritt CAPTOR_STATE_001 wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 5 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
-                        captor_state_actual = CAPTOR_STATE_101_error;
+                        pwm_M3.write(0.5f);                             //motor stop
+                        captor_state_actual = CAPTOR_STATE_CENTRIFUGE_MISSING_error;
                         printf("Schritt CAPTOR_STATE_101_error wurde aktiviert\n");
                         break;
 
                     }else if (sum_endstop == 2 and !act_step_activ){
-                        pwm_M1.write(0.5f);                             //motor stop
-                        captor_state_actual = CAPTOR_STATE_010_error;
+                        pwm_M3.write(0.5f);                             //motor stop
+                        captor_state_actual = CAPTOR_STATE_CENTRIFUGE_MISSING_error;
                         printf("Schritt CAPTOR_STATE_010_error wurde aktiviert\n");
                         break;
 
                     } else if (sum_endstop == 20){
-                        pwm_M1.write(0.5f);                             //motor stop
+                        pwm_M3.write(0.5f);                             //motor stop
                         captor_state_actual = CAPTOR_STATE_TEST;
                         printf("Schritt CAPTOR_STATE_TEST wurde aktiviert\n");
                     } else {
@@ -245,7 +265,7 @@ int main()
 
                 case CAPTOR_STATE_TEST:
                     printf("Run TEST: END\n");
-                    // Test something
+                    // Test something               
                     printf("Run TEST: END\n");
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
@@ -253,64 +273,162 @@ int main()
                 case CAPTOR_STATE_000:
                     drive_belt_forward();
                     printf("Run CAPTOR_STATE_000\n");
+                    wait_us(100000); // 0.01s delay
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
                 
                 case CAPTOR_STATE_100:
-                    read_liquid_level();
-                    drive_belt_forward();
                     act_step_activ = 1;
-                    captor_state_actual = CAPTOR_STATE_INIT;
+                    step_count++;
+
+                    check_color = read_cap_color();
+                    if(check_color == true){
+                        drive_belt_forward();
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    } else{
+                        captor_state_actual = CAPTOR_STATE_COLOR_error;
+                    }
                     break;
                 
                 case CAPTOR_STATE_110:
-                    read_liquid_level();
-                    check_decap =  decap();
-                    drive_belt_forward();
                     act_step_activ = 1;
-                    captor_state_actual = CAPTOR_STATE_INIT;
+                    step_count++;
+
+                    // COLOR
+                    check_color = read_cap_color();
+                    if(check_color == false){
+                        captor_state_actual = CAPTOR_STATE_COLOR_error;
+                        break;
+                    }
+                    // DECAP
+                    check_decap = decap();
+                    if(check_decap == false){
+                        captor_state_actual = CAPTOR_STATE_DECAP_error;
+                        break;
+                    }
+                    // ALL GOOD
+                    if(check_color == true && check_decap == true){
+                        drive_belt_forward();
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    } 
                     break;
                 
                 case CAPTOR_STATE_111:
-                    read_liquid_level();
-                    check_decap =  decap();
-                    read_liquid_level();
-                    drive_belt_forward();
                     act_step_activ = 1;
-                    captor_state_actual = CAPTOR_STATE_INIT;
+                    step_count++;
+
+                    // COLOR
+                    check_color = read_cap_color();
+                    if(check_color == false){
+                        captor_state_actual = CAPTOR_STATE_COLOR_error;
+                        break;
+                    }
+                    // LEVEL
+                    check_level = read_liquid_level();
+                    if(check_level == false){
+                        captor_state_actual = CAPTOR_STATE_LIQUID_error;
+                        break;
+                    }
+                    // DECAP
+                    check_decap = decap();
+                    if(check_decap == false){
+                        captor_state_actual = CAPTOR_STATE_DECAP_error;
+                        break;
+                    }
+                    // ALL GOOD
+                    if(check_color == true && check_decap == true && check_level == true){
+                        drive_belt_forward();
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    } 
                     break;
                 
                 case CAPTOR_STATE_011:
-                    check_decap =  decap();
-                    read_liquid_level();
-                    drive_belt_forward();
                     act_step_activ = 1;
-                    captor_state_actual = CAPTOR_STATE_INIT;
+                    step_count++;
+
+                    // LEVEL
+                    check_level = read_liquid_level();
+                    if(check_level == false){
+                        captor_state_actual = CAPTOR_STATE_LIQUID_error;
+                        break;
+                    }
+                    // DECAP
+                    check_decap = decap();
+                    if(check_decap == false){
+                        captor_state_actual = CAPTOR_STATE_DECAP_error;
+                        break;
+                    }
+                    // ALL GOOD
+                    if(check_decap == true && check_level == true){
+                        drive_belt_forward();
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    } 
                     break;
                 
                 case CAPTOR_STATE_001:
-                    read_liquid_level();
-                    drive_belt_forward();
                     act_step_activ = 1;
-                    printf("Motor drive Forward\n");
+                    step_count++;
+
+                    // LEVEL
+                    check_level = read_liquid_level();
+                    if(check_level == false){
+                        captor_state_actual = CAPTOR_STATE_LIQUID_error;
+                        break;
+                    } else{
+                        last_step_done = true;
+                        drive_belt_forward();
+                        captor_state_actual = CAPTOR_STATE_INIT;
+                    }
+                
+                case CAPTOR_STATE_COLOR_error:
+                    wait_counter = 0;
+                    while(wait_cycles*step_count > wait_counter) {
+                        wait_us(10000);
+                        drive_belt_backward();
+                        wait_counter++;
+                    }
+                    step_count = 0;
+                    // add LED out
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
+
+                case CAPTOR_STATE_DECAP_error: // add decap error routine
+                    // wait_counter = 0;
+                    // while(wait_cycles*step_count > wait_counter) {
+                    //     wait_us(10000);
+                    //     drive_belt_backward();
+                    //     wait_counter++;
+                    // }
+                    // step_count = 0;
+                    // add LED out
+                    // captor_state_actual = CAPTOR_STATE_INIT;
+                    break;               
                 
-                case CAPTOR_STATE_010_error:
-                    // Error case
+
+                case CAPTOR_STATE_LIQUID_error:
+                    wait_counter = 0;
+                    while(wait_cycles*step_count > wait_counter) {
+                        wait_us(10000);
+                        drive_belt_backward();
+                        wait_counter++;
+                    }
+                    step_count = 0;
+                    // add LED out
                     captor_state_actual = CAPTOR_STATE_INIT;
-                    break;
+                    break;     
                 
-                case CAPTOR_STATE_101_error:
-                    // Error case
+                case CAPTOR_STATE_CENTRIFUGE_MISSING_error:
+                    wait_counter = 0;
+                    while(wait_cycles*step_count > wait_counter) {
+                        wait_us(10000);
+                        drive_belt_backward();
+                        wait_counter++;
+                    }
+                    step_count = 0;
+                    // add LED out
                     captor_state_actual = CAPTOR_STATE_INIT;
-                    break;
-                
-                case CAPTOR_STATE_error:
-                    // Error case
-                    captor_state_actual = CAPTOR_STATE_INIT;
-                    break;
-                
+                    break;     
+
                 default:
                     // do nothing 
                     printf("STEP DEFAULT\n");
@@ -348,19 +466,32 @@ void toggle_do_execute_main_fcn()
 
 // Farbsensor
 bool read_cap_color(void){
-    // return if level is correct
-    return true;
+    int counter = 0;
+    bool color_state = false;
+    
+    while(counter <= 1000 && color_state == false){
+        if(color_in_OK.read() == true){
+            // printf("RED Cap OK\n");
+            color_state = true;
+        } else{
+            // printf("NO Cap Detectet\n");
+            color_state = false;
+        }
+        counter++;
+        // printf("color counter: %d \n", counter);
+    }
+    return color_state;
 }
 
 
-bool decap(void){
+bool decap(void){               // add: return false
     float rot_decap = 3.0f;
     bool decap_ok = 0;
     bool tornado_is_down = 0;
     bool tornado_is_up = 1;
 
     while (!decap_ok) {
-        //printf("Position: %f\n", motor_M2.getRotation());
+        // printf("Position: %f\n", motor_M2.getRotation());
         if (tornado_is_up) {
             motor_M2.setRotation(rot_decap);
             tornado_is_up = 0;
@@ -380,51 +511,39 @@ bool decap(void){
     return true;
 }
 
-
-bool read_cap_coulor(){
-    return true;
-}
-// Decapper
-bool drive_belt(void);
-// return 1 if decapping is succesful
-// return 0 if decapping is not succesful
-
 // Ultrasonic / liquid level
-bool read_liquid_level() {
-    // return True if level is correct
-    int counter = 0;
-    uint16_t sum_liq_level = 0;
-    printf("FUN: read liquidlevel: START\n");
-    vl_sensor.setModeContinuous();
-    vl_sensor.startContinuous();
+bool read_liquid_level() {          // add: return false
+    // // return True if level is correct
+    // int counter = 0;
+    // uint16_t sum_liq_level = 0;
+    // printf("FUN: read liquidlevel: START\n");
+    // vl_sensor.setModeContinuous();
+    // vl_sensor.startContinuous();
 
-    while(counter < 100) {
-        wait_us(10000);
-        if (vl_sensor.getRangeMillimeters() >= 2000) {
-            counter = counter;
-        }else {
-            sum_liq_level +=  vl_sensor.getRangeMillimeters();
-            counter++;
-        }
-        printf("%4d mm Act: %4d mm\r\n", sum_liq_level/counter, vl_sensor.getRangeMillimeters());
-    }
-    sum_liq_level /= counter;
-    printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
+    // while(counter < 100) {
+    //     wait_us(10000);
+    //     if (vl_sensor.getRangeMillimeters() >= 2000) {
+    //         counter = counter;
+    //     }else {
+    //         sum_liq_level +=  vl_sensor.getRangeMillimeters();
+    //         counter++;
+    //     }
+    //     printf("%4d mm Act: %4d mm\r\n", sum_liq_level/counter, vl_sensor.getRangeMillimeters());
+    // }
+    // sum_liq_level /= counter;
+    // printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
     return true;
 }
 
 // Foerderband fahren
 bool drive_belt_forward(){
-    pwm_M1.write(0.0f);
-    printf("Motor drive Forward\n");
+    pwm_M3.write(0.7f);
+    // printf("Motor drive Forward\n");
     return true;
 }
 
 bool drive_belt_backward() {
-    pwm_M1.write(1.0f);
-    printf("Motor drive Backward\n");
+    pwm_M3.write(0.3f);
+    // printf("Motor drive Backward\n");
     return true;
 }
-
-// show Error messages on LED's
-//void show_LED(int error_code);
