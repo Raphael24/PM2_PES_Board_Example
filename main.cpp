@@ -77,11 +77,11 @@ int main()
     //vl_sensor.startContinuous();
     
     // while loop for testcase
-    while(0)
-    {
-        wait_us(10000);
-        printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
-    }
+    //while(0)
+    //{
+    //    wait_us(10000);
+    //    printf("%4imm\r\n", vl_sensor.getRangeMillimeters());
+    //}
 
     user_button.fall(&toggle_do_execute_main_fcn);
     
@@ -112,10 +112,17 @@ int main()
     //motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
 
+<<<<<<< HEAD
     // motor M3 (speed controlled, openloop)
     pwm_M3.write(0.5f); //   0V is applied to the motor
     //pwm_M3.write(1.0f); //  12V is applied to the motor
     //pwm_M3.write(0.0f); // -12V is applied to motor
+=======
+    // motor M1 (speed controlled, openloop)
+    //pwm_M1.write(0.0f); //   0V is applied to the motor
+    //pwm_M1.write(0.5f); //  12V is applied to the motor
+    //pwm_M1.write(0.0f); // -12V is applied to motor
+>>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
 
 
 
@@ -537,13 +544,23 @@ bool read_liquid_level() {          // add: return false
 
 // Foerderband fahren
 bool drive_belt_forward(){
+<<<<<<< HEAD
     pwm_M3.write(0.7f);
     // printf("Motor drive Forward\n");
+=======
+    pwm_M1.write(1.0f);
+    printf("Motor drive Forward\n");
+>>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
     return true;
 }
 
 bool drive_belt_backward() {
+<<<<<<< HEAD
     pwm_M3.write(0.3f);
     // printf("Motor drive Backward\n");
+=======
+    pwm_M1.write(0.0f);
+    printf("Motor drive Backward\n");
+>>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
     return true;
 }
