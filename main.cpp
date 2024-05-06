@@ -111,18 +111,19 @@ int main()
     motor_M2.setMaxVelocity(motor_M2.getMaxPhysicalVelocity() * 0.2f);
     //motor_M2.setMaxAcceleration(motor_M2.getMaxAcceleration() * 0.5f);
 
+    motor_M2.setRotation(0.0f);
 
-<<<<<<< HEAD
+
+
     // motor M3 (speed controlled, openloop)
     pwm_M3.write(0.5f); //   0V is applied to the motor
     //pwm_M3.write(1.0f); //  12V is applied to the motor
     //pwm_M3.write(0.0f); // -12V is applied to motor
-=======
+
     // motor M1 (speed controlled, openloop)
     //pwm_M1.write(0.0f); //   0V is applied to the motor
     //pwm_M1.write(0.5f); //  12V is applied to the motor
     //pwm_M1.write(0.0f); // -12V is applied to motor
->>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
 
 
 
@@ -194,7 +195,7 @@ int main()
                     sum_endstop |= (!(endstop1.read()) << 2); 
                     sum_endstop |= (!(endstop2.read()) << 1); 
                     sum_endstop |= !(endstop3.read()); 
-                    // sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
+                    sum_endstop = CAPTOR_STATE_TEST;    //to Force Step
                     // printf("Endstop1: %d, Endstop2: %d, Endstop3: %d\n", endstop1.read(), endstop2.read(), endstop3.read());
                     printf("Summeendstops: %d \n", sum_endstop);
                     /* Mapping table:
@@ -272,7 +273,7 @@ int main()
 
                 case CAPTOR_STATE_TEST:
                     printf("Run TEST: END\n");
-                    // Test something               
+                    decap();             
                     printf("Run TEST: END\n");
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
@@ -496,71 +497,67 @@ bool decap(void){               // add: return false
     bool decap_ok = 0;
     bool tornado_is_down = 0;
     bool tornado_is_up = 1;
+    float m2_start_position = motor_M2.getRotation();
 
     while (!decap_ok) {
-        // printf("Position: %f\n", motor_M2.getRotation());
-        if (tornado_is_up) {
-            motor_M2.setRotation(rot_decap);
+        printf("Position: %f\n", motor_M2.getRotation());
+        if (tornado_is_up and !decap_ok) {
+            motor_M2.setRotation(rot_decap + m2_start_position);
             tornado_is_up = 0;
         }
 
-        if(motor_M2.getRotation() >= rot_decap-0.01f and !tornado_is_up){
+        if(motor_M2.getRotation() >= (m2_start_position + rot_decap - 0.01f) and !tornado_is_up){
             tornado_is_down = 1;
             motor_M2.setRotation(0.0f);
         }
 
-        if(tornado_is_down and motor_M2.getRotation() <= 0.01f){
+        if(tornado_is_down and motor_M2.getRotation() <= m2_start_position-0.0001f){
             decap_ok = 1;
             tornado_is_up = 1;
         }
-        wait_us(1000);
+        //wait_us(1000);
     }
+    
     return true;
 }
 
 // Ultrasonic / liquid level
 bool read_liquid_level() {          // add: return false
-    // // return True if level is correct
-    // int counter = 0;
-    // uint16_t sum_liq_level = 0;
-    // printf("FUN: read liquidlevel: START\n");
-    // vl_sensor.setModeContinuous();
-    // vl_sensor.startContinuous();
+    // return True if level is correct
+    int counter = 0;
+    uint16_t sum_liq_level = 0;
+    printf("FUN: read liquidlevel: START\n");
+    vl_sensor.setModeContinuous();
+    vl_sensor.startContinuous();   
 
-    // while(counter < 100) {
-    //     wait_us(10000);
-    //     if (vl_sensor.getRangeMillimeters() >= 2000) {
-    //         counter = counter;
-    //     }else {
-    //         sum_liq_level +=  vl_sensor.getRangeMillimeters();
-    //         counter++;
-    //     }
-    //     printf("%4d mm Act: %4d mm\r\n", sum_liq_level/counter, vl_sensor.getRangeMillimeters());
-    // }
-    // sum_liq_level /= counter;
-    // printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
+    while(counter < 100) {
+        wait_us(10000);
+        if (vl_sensor.getRangeMillimeters() >= 2000) {
+            counter = counter;
+        }else {
+            sum_liq_level +=  vl_sensor.getRangeMillimeters();
+            counter++;
+        }
+        printf("%4d mm Act: %4d mm\r\n", sum_liq_level/counter, vl_sensor.getRangeMillimeters());
+    }
+    sum_liq_level /= counter;
+    printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
     return true;
 }
 
 // Foerderband fahren
 bool drive_belt_forward(){
-<<<<<<< HEAD
     pwm_M3.write(0.7f);
     // printf("Motor drive Forward\n");
-=======
-    pwm_M1.write(1.0f);
+    pwm_M3.write(1.0f);
     printf("Motor drive Forward\n");
->>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
     return true;
 }
 
 bool drive_belt_backward() {
-<<<<<<< HEAD
     pwm_M3.write(0.3f);
     // printf("Motor drive Backward\n");
-=======
-    pwm_M1.write(0.0f);
+    pwm_M3.write(0.0f);
     printf("Motor drive Backward\n");
->>>>>>> 37f85f0d81a290a0186df821a8738836ac5b2aa5
     return true;
 }
