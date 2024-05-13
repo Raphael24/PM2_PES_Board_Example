@@ -354,6 +354,7 @@ int main()
                         drive_belt_forward();
                         captor_state_actual = CAPTOR_STATE_INIT;
                     } 
+                    // Todo: else einfügen: (Full ERROR)
                     break;
                 
                 case CAPTOR_STATE_111:
@@ -381,6 +382,7 @@ int main()
                         drive_belt_forward();
                         captor_state_actual = CAPTOR_STATE_INIT;
                     } 
+                    // Todo: else einfügen: (Full ERROR)
                     break;
                 
                 case CAPTOR_STATE_011:
@@ -402,6 +404,7 @@ int main()
                         drive_belt_forward();
                         captor_state_actual = CAPTOR_STATE_INIT;
                     } 
+                    // Todo: else einfügen: (Full ERROR)
                     break;
                 
                 case CAPTOR_STATE_001:
@@ -411,7 +414,7 @@ int main()
                     if(check_level == false){
                         captor_state_actual = CAPTOR_STATE_LIQUID_error;
                         break;
-                    } else{
+                    } else {
                         last_step_done = true;
                         drive_belt_forward();
                         captor_state_actual = CAPTOR_STATE_INIT;
@@ -430,6 +433,7 @@ int main()
                     }
                     step_count = 0;
                     LED_color_error = false;
+                    // Todo: ACK_Button hinzufügen um Programm weiterfahren zu lassen
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;
 
@@ -458,6 +462,7 @@ int main()
                     }
                     step_count = 0;
                     LED_level_error = false;
+                    // Todo: ACK_Button hinzufügen um Programm weiterfahren zu lassen
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;     
                 
@@ -473,6 +478,7 @@ int main()
                     }
                     step_count = 0;
                     LED_missing_error = false;
+                    // Todo: ACK_Button hinzufügen um Programm weiterfahren zu lassen
                     captor_state_actual = CAPTOR_STATE_INIT;
                     break;     
 
@@ -487,12 +493,10 @@ int main()
             // the following code block gets executed only once
             if (do_reset_all_once) {
                 do_reset_all_once = false;
-
                 // reset variables and objects
                 // led1 = 0;
             }
         }
-
         // toggling the user led
         user_led = !user_led;
 
@@ -532,11 +536,10 @@ bool read_cap_color(void){
 
 
 bool decap(){               // add: return false
-    float rot_decap = 4.2f;
+    float rot_decap = 4.6f;
     bool decap_ok = 0;
     bool tornado_is_down = 0;   // make up down state global
     bool tornado_is_up = 1;
-    // float m2_start_position = motor_M2.getRotation(); 
 
     while (!decap_ok) {
         printf("Position: %f\n", motor_M2.getRotation());
@@ -552,7 +555,7 @@ bool decap(){               // add: return false
             printf("Toranado go up\n");
         }
 
-        if(tornado_is_down && motor_M2.getRotation() <= 0.0f){
+        if(tornado_is_down && motor_M2.getRotation() <= 0.01f){
             decap_ok = 1;
             tornado_is_up = 1;
             printf("Toranado is up\n");
@@ -583,7 +586,8 @@ bool read_liquid_level() {          // add: return false
     }
     sum_liq_level /= counter;
     printf("FUN: read liquidlevel: END %d\n", sum_liq_level);
-    return false;
+
+    return true;
 }
 
 // Foerderband fahren
