@@ -166,7 +166,7 @@ int main()
     // Step check
     bool check_color = false;
     bool check_decap = false;
-    int check_level = false;
+    int check_level = 0;
    
     int captor_state_actual = CAPTOR_STATE_INIT;
     int act_step_activ = 0;
@@ -373,7 +373,7 @@ int main()
                     if(check_level == 0){
                         captor_state_actual = CAPTOR_STATE_INIT;
                         
-                    } else if (check_color == 1){
+                    } else if (check_level == 1){
                         captor_state_actual = CAPTOR_STATE_LIQUID_error;
                         break;
                     } else {
@@ -402,7 +402,7 @@ int main()
                     if(check_level == 0){
                         captor_state_actual = CAPTOR_STATE_INIT;
                         
-                    } else if (check_color == 1){
+                    } else if (check_level == 1){
                         captor_state_actual = CAPTOR_STATE_LIQUID_error;
                         break;
                     } else {
@@ -432,9 +432,10 @@ int main()
                         drive_belt_forward();
                         captor_state_actual = CAPTOR_STATE_INIT;
                         
-                    } else if (check_color == 1){
+                    } else if (check_level == 1){
                         captor_state_actual = CAPTOR_STATE_LIQUID_error;
                         break;
+
                     } else {
                         captor_state_actual = CAPTOR_STATE_DECAP_error;
                         break;
@@ -627,17 +628,18 @@ int read_liquid_level() {          // add: return false
 
     if(sum_liq_level >= 70 and sum_liq_level <= 115){
         // Liquidlevel ok
-        printf("Liquidlevel OK");
+        printf("Liquidlevel OK\n");
         level_ok = 0;
     } else if (sum_liq_level <= 50){
         //Cap error
-        printf("Cap is still on");
+        printf("Cap is still on\n");
         level_ok = 2;
     } else {
         // tube is empty
-        printf("Tube is empty");
+        printf("Tube is empty\n");
         level_ok = 1;
     }
+    
     return level_ok;
 }
 
