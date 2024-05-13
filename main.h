@@ -61,7 +61,7 @@ void toggle_do_execute_main_fcn();   // custom function which is getting execute
 
 bool read_cap_color();
 bool drive_belt(void);
-bool read_liquid_level(void);
+int read_liquid_level(void);
 bool drive_belt_forward();
 bool drive_belt_backward();
 void show_LED(int error_code);
